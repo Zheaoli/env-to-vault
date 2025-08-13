@@ -168,7 +168,7 @@ class VaultClient:
             
             # Write all variables as a single secret
             response = self.write_secret(
-                path="environment",
+                path="",
                 data=variables,
                 metadata=metadata,
             )
