@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "env-to-vault"
-version = "0.1.0"
+version = "0.1.1"
 description = "A tool to convert environment variables from ENV files to HashiCorp Vault Secret Engine format"
 readme = "README.md"
 license = {text = "MIT"}

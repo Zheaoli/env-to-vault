@@ -68,7 +68,7 @@ class VaultClient:
             # Write to Vault
             response = self.client.secrets.kv.v2.create_or_update_secret(
                 path=full_path,
-                secret_dict=data,
+                secret=data,
                 mount_point=self.config.secret_engine,
             )
             
