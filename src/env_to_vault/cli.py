@@ -126,19 +126,14 @@ def convert(
 
         # Write variables to Vault
         logger.info("Writing environment variables to Vault...")
-        responses = vault_client.write_environment_variables(variables_dict)
+        response = vault_client.write_environment_variables(variables_dict)
         
-        # Check results
-        successful = sum(1 for r in responses if r.success)
-        failed = len(responses) - successful
-        
-        logger.info(f"Conversion completed: {successful} successful, {failed} failed")
-        
-        if failed > 0:
-            logger.error("Some variables failed to write to Vault")
-            sys.exit(1)
-        else:
+        # Check result
+        if response.success:
             logger.info("All environment variables successfully written to Vault")
+        else:
+            logger.error(f"Failed to write environment variables to Vault: {response.message}")
+            sys.exit(1)
 
     except Exception as e:
         logger.error(f"Conversion failed: {e}")

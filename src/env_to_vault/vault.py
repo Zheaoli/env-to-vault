@@ -58,12 +58,8 @@ class VaultClient:
     def write_secret(self, path: str, data: Dict[str, str], metadata: Optional[Dict[str, str]] = None) -> VaultResponse:
         """Write secret to Vault Secret Engine."""
         try:
-            full_path = f"{self.config.secret_engine}/{self.config.path_prefix}/{path}"
-            
-            # Prepare secret data
-            secret_data = {"data": data}
-            if metadata:
-                secret_data["metadata"] = metadata
+            # Path should be: {path_prefix}/{path} under the secret engine
+            full_path = f"{self.config.path_prefix}/{path}"
             
             # Write to Vault
             response = self.client.secrets.kv.v2.create_or_update_secret(
@@ -92,7 +88,7 @@ class VaultClient:
     def read_secret(self, path: str) -> Optional[Dict[str, str]]:
         """Read secret from Vault Secret Engine."""
         try:
-            full_path = f"{self.config.secret_engine}/{self.config.path_prefix}/{path}"
+            full_path = f"{self.config.path_prefix}/{path}"
             
             response = self.client.secrets.kv.v2.read_secret_version(
                 path=full_path,
@@ -115,7 +111,7 @@ class VaultClient:
     def delete_secret(self, path: str) -> VaultResponse:
         """Delete secret from Vault Secret Engine."""
         try:
-            full_path = f"{self.config.secret_engine}/{self.config.path_prefix}/{path}"
+            full_path = f"{self.config.path_prefix}/{path}"
             
             response = self.client.secrets.kv.v2.delete_metadata_and_all_versions(
                 path=full_path,
@@ -139,7 +135,7 @@ class VaultClient:
     def list_secrets(self, path: str = "") -> List[str]:
         """List secrets in Vault Secret Engine."""
         try:
-            full_path = f"{self.config.secret_engine}/{self.config.path_prefix}/{path}"
+            full_path = f"{self.config.path_prefix}/{path}"
             
             response = self.client.secrets.kv.v2.list_secrets(
                 path=full_path,
@@ -157,24 +153,39 @@ class VaultClient:
             logger.error(f"Failed to list secrets: {e}")
             return []
 
-    def write_environment_variables(self, variables: Dict[str, str], metadata: Optional[Dict[str, str]] = None) -> List[VaultResponse]:
-        """Write multiple environment variables to Vault."""
-        responses = []
-        
-        for key, value in variables.items():
-            # Create a separate secret for each environment variable
-            # This allows for better granular access control
+    def write_environment_variables(self, variables: Dict[str, str], metadata: Optional[Dict[str, str]] = None) -> VaultResponse:
+        """Write all environment variables as a single secret to Vault."""
+        try:
+            # Add metadata about the environment file
+            if metadata is None:
+                metadata = {}
+            
+            metadata.update({
+                "type": "environment_variables",
+                "count": str(len(variables)),
+                "source": "env-to-vault",
+            })
+            
+            # Write all variables as a single secret
             response = self.write_secret(
-                path=key,
-                data={key: value},
+                path="environment",
+                data=variables,
                 metadata=metadata,
             )
-            responses.append(response)
             
-            if not response.success:
-                logger.error(f"Failed to write variable {key}")
-        
-        return responses
+            if response.success:
+                logger.info(f"Successfully wrote {len(variables)} environment variables to Vault")
+            else:
+                logger.error("Failed to write environment variables to Vault")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Failed to write environment variables: {e}")
+            return VaultResponse(
+                success=False,
+                message=f"Failed to write environment variables: {e}",
+            )
 
     def write_environment_file(self, variables: Dict[str, str], file_name: str = "env") -> VaultResponse:
         """Write all environment variables as a single secret file."""
